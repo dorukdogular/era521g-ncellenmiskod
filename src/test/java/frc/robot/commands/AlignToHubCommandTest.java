@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import edu.wpi.first.math.controller.PIDController;
+
 import frc.robot.Constants.AlignConstants;
 
 class AlignToHubCommandTest {
@@ -46,6 +48,14 @@ class AlignToHubCommandTest {
       assertTrue(out - previous < 0.02, "jump at tx=" + tx);
       previous = out;
     }
+  }
+
+  @Test
+  void targetOnTheRightCommandsClockwiseRotation() {
+    PIDController pid = new PIDController(0.01, 0.0, 0.0);
+    assertTrue(AlignToHubCommand.aimRotation(10.0, 1.0, pid) < 0.0);
+    pid.reset();
+    assertTrue(AlignToHubCommand.aimRotation(-10.0, 1.0, pid) > 0.0);
   }
 
   @Test

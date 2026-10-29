@@ -40,6 +40,10 @@ public final class Constants {
     public static final boolean LEFT_INVERTED  = false;
     public static final boolean RIGHT_INVERTED = true;
 
+    // Cubuk isaretleri DriveCommand icinde cevrilir.
+    // Xbox Y: geri pozitif, arcade ileri pozitif ister.
+    // WPILib 2026 arcade donusu saat yonunun tersine pozitiftir; sag cubuk X de cevrilir.
+
     // cim icin 40a (eskiden 50). mini cim'e gecersen 30a yap.
     // not: revlib dokumani smart limit'in brushed'da etkisiz olabilecegini soyluyor; robot eskiden de bu sekilde calisiyordu
     public static final int CURRENT_LIMIT_BRUSHED = 40;
@@ -151,10 +155,13 @@ public final class Constants {
     public static final double DEFAULT_KP = 0.0002; // baslangic: topluluk ornegi kv=1/473 ile kp=0.0002 (donanimda dogrulanmadi, tune et)
     public static final double MAX_KP     = 0.002;  // dashboard bundan fazlasini kabul etmez
 
-    // hazir: |rpm - hedef| < ready_tol 0.12 sn boyunca. hazirdan cikis: rpm < hedef - drop_tol
+    // hazir: |rpm - hedef| < ready_tol 0.12 sn boyunca. hazirdan cikis: |rpm - hedef| > drop_tol
     public static final double READY_TOLERANCE_RPM = 150.0;
     public static final double DROP_TOLERANCE_RPM  = 350.0;
     public static final double READY_DEBOUNCE_SECONDS = 0.12;
+
+    // ty gurultusu setpoint'i titretmesin. bundan kucuk rpm degisiklikleri yok sayilir
+    public static final double RETARGET_DEADBAND_RPM = 50.0;
 
     // rpm olcum filtresi: varsayilan 32 ms / 8. daha az gecikme icin 16 ms / 4. rpm cok oynak gorunurse 32 / 8'e don
     public static final int VELOCITY_MEASUREMENT_PERIOD_MS = 16; // izinli aralik 8-64
@@ -246,9 +253,14 @@ public final class Constants {
     public static final double MIN_VALID_DISTANCE_METERS = 0.8;
     public static final double MAX_VALID_DISTANCE_METERS = 6.0;
 
-    // atis tablosu olculene kadar false kalsin. false iken auto-aim sadece hizalar,
-    // rpm ve hood acisi dashboard/varsayilan degerden gelir. tablo dolunca true yap
-    public static final boolean USE_DISTANCE_SHOT = false;
+    // true: gecerli ty varken rpm ve hood tablodan gelir, PID oturunca besleme baslar.
+    // false: eski davranis, hep manuel rpm/hood.
+    // TABLO HALA OLCULMEMIS yer tutucu. Egri dogru yone gider ama sayilar atis gunu degismeli.
+    public static final boolean USE_DISTANCE_SHOT = true;
+
+    // tek karede ty'nin tabloya yansiyabilecegi en fazla degisim (20 ms dongu basina derece).
+    // ani tag sicramasi rpm'i ziplatmasin; gercek surus bundan yavas ty degistirir.
+    public static final double TY_SLEW_DEGREES_PER_CYCLE = 0.5;
 
     // {ty (derece), rpm, hood acisi (derece)}. ty = limelight'in gosterdigi dikey aci (dashboard: Vision/Ty).
     // hedefe YAKINKEN ty BUYUK, uzakken kucuk (negatif).
@@ -256,12 +268,16 @@ public final class Constants {
     // top girene kadar rpm'i ve hood acisini ayarla (Shooter/TargetRPM, Hood/ManualDegrees), ucunu de yaz.
     // satir sirasi onemli degil ama ayni ty iki kez olmasin. rpm'ler MIN/MAX_TARGET_RPM, hood acilari
     // HoodConstants.MIN/MAX_DEGREES araliginda olmali.
-    // asagidakiler TAHMINI placeholder (4.5 m, 3.5 m, 2.5 m, 1.5 m). mutlaka olc ve degistir!
+    // asagidakiler TAHMINI placeholder. mutlaka olc ve degistir.
+    // uc satirlar, rehberdeki yakin (~+11 ty) ve uzak ucun tablo disina dusmemesi icin
+    // ayni egimle uzatildi. 5000 rpm tavani yuku tutmayabilir; olcumde dusur.
     public static final double[][] SHOT_BY_TY_TABLE = {
-        {-8.0, 5000.0, 30.0},
-        {-4.0, 4400.0, 25.0},
-        { 0.0, 3800.0, 20.0},
-        { 6.0, 3200.0, 12.0},
+        {-12.0, 5000.0, 35.0},
+        { -8.0, 5000.0, 30.0},
+        { -4.0, 4400.0, 25.0},
+        {  0.0, 3800.0, 20.0},
+        {  6.0, 3200.0, 12.0},
+        { 12.0, 2600.0,  4.0},
     };
 
     // tablonun ty araliginin disina bu kadar derece tasarsa rpm hesaplanmaz (guvenli varsayilana doner)
@@ -294,7 +310,9 @@ public final class Constants {
     public static final double FADE_DEGREES      = 6.0;
     public static final double MIN_TURN_FRACTION = 0.7;
 
-    // bench: tx>0 (hedef sagda) iken robot saat yonunde donmuyorsa -1.0 yap
+    // WPILib 2026 arcade donusu saat yonunun tersine pozitiftir.
+    // TURN_SIGN +1 iken tx>0 (hedef sagda) negatif, yani saat yonunde donus uretir.
+    // bench'te ters donuyorsa -1.0 yap.
     public static final double TURN_SIGN = 1.0;
   }
 }

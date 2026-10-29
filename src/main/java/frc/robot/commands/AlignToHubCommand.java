@@ -1,5 +1,6 @@
 package frc.robot.commands;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.math.MathUtil;
@@ -23,6 +24,7 @@ public class AlignToHubCommand extends Command {
   private final DriveSubsystem drive;
   private final VisionSubsystem vision;
   private final DoubleSupplier throttleSupplier;
+  private final BooleanSupplier turnEnabled;
 
   private final PIDController pid =
       new PIDController(AlignConstants.KP, AlignConstants.KI, AlignConstants.KD);
@@ -38,9 +40,20 @@ public class AlignToHubCommand extends Command {
   public AlignToHubCommand(DriveSubsystem drive,
                            VisionSubsystem vision,
                            DoubleSupplier throttleSupplier) {
+    this(drive, vision, throttleSupplier, () -> true);
+  }
+
+  /**
+   * @param turnEnabled when false, forward/back still works but the robot does not steer at the tag
+   */
+  public AlignToHubCommand(DriveSubsystem drive,
+                           VisionSubsystem vision,
+                           DoubleSupplier throttleSupplier,
+                           BooleanSupplier turnEnabled) {
     this.drive = drive;
     this.vision = vision;
     this.throttleSupplier = throttleSupplier;
+    this.turnEnabled = turnEnabled;
     addRequirements(drive);
 
     SmartDashboard.setDefaultNumber("Align/kP", AlignConstants.KP);
@@ -51,6 +64,15 @@ public class AlignToHubCommand extends Command {
 
   public boolean isAligned() {
     return aligned;
+  }
+
+  /**
+   * Rotation command for a vision error. {@code PIDController.calculate(tx, 0)} is negative when
+   * the target is to the right. WPILib 2026 treats negative arcade rotation as clockwise, which
+   * turns toward that target when {@code turnSign} is +1.
+   */
+  static double aimRotation(double tx, double turnSign, PIDController pid) {
+    return pid.calculate(tx, 0.0) * turnSign;
   }
 
   /**
@@ -92,20 +114,19 @@ public class AlignToHubCommand extends Command {
           SmartDashboard.getNumber("Align/MinTurn", AlignConstants.MIN_TURN_OUTPUT), 0.0, 0.2);
     }
 
-    // same feel as the normal drive command: deadband + squared input
-    double throttle = MathUtil.applyDeadband(throttleSupplier.getAsDouble(), DriveConstants.DEADBAND);
+    // same sign and shape as the normal drive command
+    double throttle = MathUtil.applyDeadband(
+        DriveCommand.forwardFromStick(throttleSupplier.getAsDouble()), DriveConstants.DEADBAND);
     throttle = Math.copySign(throttle * throttle, throttle);
 
     double turn = 0.0;
 
-    if (vision.hasTarget()) {
+    if (turnEnabled.getAsBoolean() && vision.hasTarget()) {
       double tx = vision.getTxDegrees();
       aligned = alignedLatch.update(tx, true);
 
       if (!aligned && Math.abs(tx) > AlignConstants.TOLERANCE_DEGREES) {
-        // tx > 0 means the aim point is on the right, so we rotate clockwise (positive rotation)
-        double pidOut = -pid.calculate(tx, 0.0) * AlignConstants.TURN_SIGN;
-        turn = shapeTurn(pidOut, tx, minTurn, maxTurn);
+        turn = shapeTurn(aimRotation(tx, AlignConstants.TURN_SIGN, pid), tx, minTurn, maxTurn);
       } else {
         pid.reset();
       }

@@ -14,12 +14,14 @@ import frc.robot.subsystems.IntakeRollerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
 /**
- * Hold-to-shoot command. Spins the shooter up to the target RPM, moves the hood to the target
- * angle and, once the shooter and hood are ready (and the optional aim gate is true), runs the feeder, oscillates the intake pivot between its
- * OPEN and CLOSED setpoints, and uses the intake roller to assist the feed. If the shooter or the
- * gate drops out the feeder stops until both are good again. On release, the feeder, roller and
- * pivot stop/close and the hood goes home; the shooter stops too unless it was already running
- * before the command (then the hood goes back to the manual angle).
+ * Hold-to-shoot command. While {@code armGate} is true, sets the shooter RPM and hood angle from
+ * the suppliers and runs the flywheel. Feeding starts only after the shooter and hood have settled
+ * and {@code feedGate} is true. Small supplier noise is ignored inside the subsystems, and a real
+ * step drops Ready until the PID is back inside the band.
+ *
+ * <p>On release, the feeder, roller and pivot stop and the hood goes home. The shooter stops too
+ * unless it was already running before the command (then the hood returns to the manual angle).
+ * The command runs until it is cancelled.
  */
 public class ShootCommand extends Command {
 
@@ -32,9 +34,11 @@ public class ShootCommand extends Command {
   private final IntakeRollerSubsystem roller;
   private final DoubleSupplier rpmSupplier;
   private final DoubleSupplier hoodSupplier;
-  private final BooleanSupplier aimGate;
+  private final BooleanSupplier armGate;
+  private final BooleanSupplier feedGate;
 
   private final Timer oscTimer = new Timer();
+
   private State state = State.SPINNING_UP;
   private boolean pivotTargetOpen = false;
   private boolean shooterWasRunning = false;
@@ -46,7 +50,7 @@ public class ShootCommand extends Command {
                       IntakePivotSubsystem pivot,
                       IntakeRollerSubsystem roller) {
     this(shooter, feeder, hood, pivot, roller,
-        shooter::getManualRpm, hood::getManualDegrees, () -> true);
+        shooter::getManualRpm, hood::getManualDegrees, () -> true, () -> true);
   }
 
   public ShootCommand(ShooterSubsystem shooter,
@@ -56,7 +60,24 @@ public class ShootCommand extends Command {
                       IntakeRollerSubsystem roller,
                       DoubleSupplier rpmSupplier,
                       DoubleSupplier hoodSupplier,
-                      BooleanSupplier aimGate) {
+                      BooleanSupplier feedGate) {
+    this(shooter, feeder, hood, pivot, roller,
+        rpmSupplier, hoodSupplier, () -> true, feedGate);
+  }
+
+  /**
+   * @param armGate when true, apply the RPM and hood suppliers and run the flywheel
+   * @param feedGate extra condition (alignment, in-range distance) required before feeding
+   */
+  public ShootCommand(ShooterSubsystem shooter,
+                      FeederSubsystem feeder,
+                      HoodSubsystem hood,
+                      IntakePivotSubsystem pivot,
+                      IntakeRollerSubsystem roller,
+                      DoubleSupplier rpmSupplier,
+                      DoubleSupplier hoodSupplier,
+                      BooleanSupplier armGate,
+                      BooleanSupplier feedGate) {
     this.shooter = shooter;
     this.feeder = feeder;
     this.hood = hood;
@@ -64,7 +85,8 @@ public class ShootCommand extends Command {
     this.roller = roller;
     this.rpmSupplier = rpmSupplier;
     this.hoodSupplier = hoodSupplier;
-    this.aimGate = aimGate;
+    this.armGate = armGate;
+    this.feedGate = feedGate;
     addRequirements(shooter, feeder, hood, pivot, roller);
   }
 
@@ -74,9 +96,7 @@ public class ShootCommand extends Command {
     pivotTargetOpen = false;
     shooterWasRunning = shooter.isRunning();
 
-    shooter.setTargetRpm(rpmSupplier.getAsDouble());
-    shooter.start();
-    hood.setTargetDegrees(hoodSupplier.getAsDouble());
+    applyShotProfile();
     feeder.stop();
     roller.stop();
     pivot.close();
@@ -87,15 +107,13 @@ public class ShootCommand extends Command {
 
   @Override
   public void execute() {
-    shooter.setTargetRpm(rpmSupplier.getAsDouble());
-    shooter.start();
-    hood.setTargetDegrees(hoodSupplier.getAsDouble());
+    applyShotProfile();
 
     boolean ready = shooter.isReadyToFeed() && hood.isReady();
-    boolean aimed = aimGate.getAsBoolean();
+    boolean feed = feedGate.getAsBoolean();
 
-    if (state == State.SHOOTING && !(ready && aimed)) {
-      // lost speed, hood angle or aim: stop feeding until both are good again
+    if (state == State.SHOOTING && !(ready && feed)) {
+      // lost speed, hood angle, distance or aim: stop feeding until they are good again
       feeder.stop();
       roller.setShootAssist(false);
       oscTimer.stop();
@@ -107,7 +125,7 @@ public class ShootCommand extends Command {
       case WAITING_AIM:
         feeder.stop();
         roller.setShootAssist(false);
-        if (ready && aimed) {
+        if (ready && feed) {
           state = State.SHOOTING;
           pivotTargetOpen = true;
           pivot.open();
@@ -134,10 +152,23 @@ public class ShootCommand extends Command {
           oscTimer.reset();
         }
         break;
+
+      default:
+        break;
     }
 
     SmartDashboard.putString("Shoot/State", state.name());
     SmartDashboard.putBoolean("Shoot/PivotTargetOpen", pivotTargetOpen);
+  }
+
+  /** Applies the distance (or manual) setpoints only while this shot is allowed to arm. */
+  private void applyShotProfile() {
+    if (!armGate.getAsBoolean()) {
+      return;
+    }
+    shooter.setTargetRpm(rpmSupplier.getAsDouble());
+    hood.setTargetDegrees(hoodSupplier.getAsDouble());
+    shooter.start();
   }
 
   @Override
@@ -159,10 +190,5 @@ public class ShootCommand extends Command {
     oscTimer.reset();
 
     SmartDashboard.putString("Shoot/State", "IDLE");
-  }
-
-  @Override
-  public boolean isFinished() {
-    return false;
   }
 }

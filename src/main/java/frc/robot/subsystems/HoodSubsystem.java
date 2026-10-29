@@ -87,13 +87,21 @@ public class HoodSubsystem extends SubsystemBase {
     if (Math.abs(target - setpointDegrees) < HoodConstants.RETARGET_DEADBAND_DEGREES) {
       return;
     }
-    setpointDegrees = target;
-    pid.setSetpoint(setpointDegrees, ControlType.kPosition, ClosedLoopSlot.kSlot0);
+    applySetpoint(target);
   }
 
-  /** Lowers the hood to its home position. */
+  /** Lowers the hood to its home position, even when the previous setpoint was inside the deadband. */
   public void stow() {
-    setTargetDegrees(HoodConstants.HOME_DEGREES);
+    applySetpoint(HoodConstants.HOME_DEGREES);
+  }
+
+  private void applySetpoint(double degrees) {
+    setpointDegrees = degrees;
+    pid.setSetpoint(setpointDegrees, ControlType.kPosition, ClosedLoopSlot.kSlot0);
+    if (Math.abs(getPositionDegrees() - setpointDegrees) > HoodConstants.READY_TOLERANCE_DEGREES) {
+      readyLatch.reset();
+      ready = false;
+    }
   }
 
   /** The angle used for manual shots (dashboard value while tuning, otherwise the constant). */
@@ -127,6 +135,7 @@ public class HoodSubsystem extends SubsystemBase {
         kP = newKp;
         SparkMaxConfig liveCfg = new SparkMaxConfig();
         liveCfg.closedLoop.pid(kP, 0.0, 0.0);
+        liveCfg.closedLoop.outputRange(HoodConstants.OUTPUT_MIN, HoodConstants.OUTPUT_MAX);
         hood.configure(liveCfg,
             ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
       }

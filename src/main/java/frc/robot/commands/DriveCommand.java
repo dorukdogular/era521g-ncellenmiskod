@@ -22,13 +22,27 @@ public class DriveCommand extends Command {
     addRequirements(drive);
   }
 
+  /**
+   * Xbox left Y is negative when the stick is pushed forward. Arcade forward is positive.
+   */
+  public static double forwardFromStick(double leftY) {
+    return -leftY;
+  }
+
+  /**
+   * Xbox right X is positive to the right. WPILib 2026 arcade rotation is
+   * counterclockwise-positive, so a right push has to be negated to turn clockwise.
+   */
+  public static double turnFromStick(double rightX) {
+    return -rightX;
+  }
+
   @Override
   public void execute() {
-    //drive.tankDrive(leftSupplier.getAsDouble(), rightSupplier.getAsDouble());
-    // deadband first: stick drift used to creep the robot (drive.setDeadband is 0)
+    // deadband after the sign fix. DifferentialDrive squares these and its own deadband is 0.
     drive.arcadeDrive(
-        MathUtil.applyDeadband(leftSupplier.getAsDouble(), DriveConstants.DEADBAND),
-        MathUtil.applyDeadband(rightSupplier.getAsDouble(), DriveConstants.DEADBAND));
+        MathUtil.applyDeadband(forwardFromStick(leftSupplier.getAsDouble()), DriveConstants.DEADBAND),
+        MathUtil.applyDeadband(turnFromStick(rightSupplier.getAsDouble()), DriveConstants.DEADBAND));
   }
 
   @Override
