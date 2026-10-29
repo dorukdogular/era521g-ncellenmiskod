@@ -13,7 +13,6 @@ import frc.robot.Constants.AntiJamConstants;
 import frc.robot.Constants.CAN;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.FeederConstants;
-import frc.robot.Constants.HoodConstants;
 import frc.robot.Constants.IntakePivotConstants;
 import frc.robot.Constants.IntakeRollerConstants;
 import frc.robot.Constants.ShooterConstants;
@@ -32,7 +31,6 @@ class ConstantsSanityTest {
     assertTrue(FeederConstants.CURRENT_LIMIT <= 40);
     assertTrue(ShooterConstants.CURRENT_LIMIT <= 40);
     assertTrue(IntakePivotConstants.CURRENT_LIMIT <= 40);
-    assertTrue(HoodConstants.CURRENT_LIMIT <= 40);
     assertTrue(IntakeRollerConstants.CURRENT_LIMIT >= 20);
     assertTrue(FeederConstants.CURRENT_LIMIT >= 20);
   }
@@ -59,8 +57,7 @@ class ConstantsSanityTest {
         ShooterConstants.KV * ShooterConstants.NEO_FREE_SPEED_RPM, 1e-9);
     assertTrue(ShooterConstants.MAX_TARGET_RPM <= 0.9 * ShooterConstants.NEO_FREE_SPEED_RPM);
     assertTrue(ShooterConstants.MIN_TARGET_RPM < ShooterConstants.MAX_TARGET_RPM);
-    assertTrue(ShooterConstants.DEFAULT_TARGET_RPM >= ShooterConstants.MIN_TARGET_RPM);
-    assertTrue(ShooterConstants.DEFAULT_TARGET_RPM <= ShooterConstants.MAX_TARGET_RPM);
+    assertEquals(5000.0, ShooterConstants.DEFAULT_TARGET_RPM, 0.0);
     assertTrue(ShooterConstants.DEFAULT_KP >= 0 && ShooterConstants.DEFAULT_KP <= ShooterConstants.MAX_KP);
     assertTrue(ShooterConstants.READY_TOLERANCE_RPM < ShooterConstants.DROP_TOLERANCE_RPM);
     assertTrue(ShooterConstants.VELOCITY_MEASUREMENT_PERIOD_MS >= 8
@@ -97,29 +94,6 @@ class ConstantsSanityTest {
   }
 
   @Test
-  void rpmTableIsSafe() {
-    double[][] table = VisionConstants.SHOT_BY_TY_TABLE;
-    assertTrue(table.length >= 2);
-    boolean rpmDecreasesAsTyIncreases = true;
-    for (int i = 0; i < table.length; i++) {
-      assertTrue(table[i][1] >= ShooterConstants.MIN_TARGET_RPM
-          && table[i][1] <= ShooterConstants.MAX_TARGET_RPM,
-          "rpm outside the safe range at row " + i);
-      assertEquals(3, table[i].length, "row " + i + " must be {ty, rpm, hoodDegrees}");
-      assertTrue(table[i][2] >= HoodConstants.MIN_DEGREES
-          && table[i][2] <= HoodConstants.MAX_DEGREES,
-          "hood angle outside the mechanical range at row " + i);
-      if (i > 0) {
-        assertTrue(table[i][0] != table[i - 1][0], "duplicate ty key at row " + i);
-        // closer (larger ty) should never need MORE rpm than farther (smaller ty)
-        boolean ok = (table[i][0] > table[i - 1][0]) == (table[i][1] <= table[i - 1][1]);
-        rpmDecreasesAsTyIncreases &= ok;
-      }
-    }
-    assertTrue(rpmDecreasesAsTyIncreases, "rpm should fall as ty rises (target closer)");
-  }
-
-  @Test
   void alignConstantsAreSane() {
     assertTrue(AlignConstants.TOLERANCE_DEGREES < AlignConstants.EXIT_TOLERANCE_DEGREES);
     assertTrue(AlignConstants.MAX_TURN_OUTPUT <= 0.6);
@@ -129,25 +103,11 @@ class ConstantsSanityTest {
   }
 
   @Test
-  void hoodConstantsAreConsistent() {
-    assertTrue(HoodConstants.MIN_DEGREES < HoodConstants.MAX_DEGREES);
-    assertTrue(HoodConstants.HOME_DEGREES >= HoodConstants.MIN_DEGREES
-        && HoodConstants.HOME_DEGREES <= HoodConstants.MAX_DEGREES);
-    assertTrue(HoodConstants.DEFAULT_DEGREES >= HoodConstants.MIN_DEGREES
-        && HoodConstants.DEFAULT_DEGREES <= HoodConstants.MAX_DEGREES);
-    assertTrue(HoodConstants.DEFAULT_KP >= 0 && HoodConstants.DEFAULT_KP <= HoodConstants.MAX_KP);
-    assertTrue(HoodConstants.READY_TOLERANCE_DEGREES < HoodConstants.DROP_TOLERANCE_DEGREES);
-    assertTrue(HoodConstants.RETARGET_DEADBAND_DEGREES < HoodConstants.READY_TOLERANCE_DEGREES);
-    assertTrue(HoodConstants.GEAR_RATIO > 0);
-    assertTrue(HoodConstants.OUTPUT_MAX <= 1.0 && HoodConstants.OUTPUT_MIN >= -1.0);
-  }
-
-  @Test
   void canIdsAreUnique() {
-    Set<Integer> ids = new HashSet<>(Set.of(
+    Set<Integer> ids = Set.of(
         CAN.LEFT_FRONT_ID, CAN.LEFT_BACK_ID, CAN.RIGHT_FRONT_ID, CAN.RIGHT_BACK_ID,
-        CAN.INTAKE_ROLLER_ID, CAN.INTAKE_PIVOT_ID, CAN.SHOOTER_ID, CAN.FEEDER_ID));
-    assertTrue(ids.add(CAN.HOOD_ID), "HOOD_ID collides with another CAN id");
+        CAN.INTAKE_ROLLER_ID, CAN.INTAKE_PIVOT_ID, CAN.SHOOTER_ID, CAN.FEEDER_ID);
+    assertEquals(8, ids.size());
   }
 
   @Test

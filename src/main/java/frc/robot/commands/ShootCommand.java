@@ -1,27 +1,23 @@
 package frc.robot.commands;
 
 import java.util.function.BooleanSupplier;
-import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.ShootCommandConstants;
+import frc.robot.Constants.ShooterConstants;
 import frc.robot.subsystems.FeederSubsystem;
-import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IntakePivotSubsystem;
 import frc.robot.subsystems.IntakeRollerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
 /**
- * Hold-to-shoot command. While {@code armGate} is true, sets the shooter RPM and hood angle from
- * the suppliers and runs the flywheel. Feeding starts only after the shooter and hood have settled
- * and {@code feedGate} is true. Small supplier noise is ignored inside the subsystems, and a real
- * step drops Ready until the PID is back inside the band.
+ * Hold-to-shoot command. Spins the flywheel at a fixed RPM. Feeding starts only after the shooter
+ * has settled and {@code feedGate} is true (alignment and shot distance).
  *
- * <p>On release, the feeder, roller and pivot stop and the hood goes home. The shooter stops too
- * unless it was already running before the command (then the hood returns to the manual angle).
- * The command runs until it is cancelled.
+ * <p>On release, the feeder, roller and pivot stop. The shooter stops too unless it was already
+ * running before the command. The command runs until it is cancelled.
  */
 public class ShootCommand extends Command {
 
@@ -29,12 +25,8 @@ public class ShootCommand extends Command {
 
   private final ShooterSubsystem shooter;
   private final FeederSubsystem feeder;
-  private final HoodSubsystem hood;
   private final IntakePivotSubsystem pivot;
   private final IntakeRollerSubsystem roller;
-  private final DoubleSupplier rpmSupplier;
-  private final DoubleSupplier hoodSupplier;
-  private final BooleanSupplier armGate;
   private final BooleanSupplier feedGate;
 
   private final Timer oscTimer = new Timer();
@@ -43,51 +35,17 @@ public class ShootCommand extends Command {
   private boolean pivotTargetOpen = false;
   private boolean shooterWasRunning = false;
 
-  /** Manual shot: dashboard/default RPM and hood angle, no aim gate. */
   public ShootCommand(ShooterSubsystem shooter,
                       FeederSubsystem feeder,
-                      HoodSubsystem hood,
-                      IntakePivotSubsystem pivot,
-                      IntakeRollerSubsystem roller) {
-    this(shooter, feeder, hood, pivot, roller,
-        shooter::getManualRpm, hood::getManualDegrees, () -> true, () -> true);
-  }
-
-  public ShootCommand(ShooterSubsystem shooter,
-                      FeederSubsystem feeder,
-                      HoodSubsystem hood,
                       IntakePivotSubsystem pivot,
                       IntakeRollerSubsystem roller,
-                      DoubleSupplier rpmSupplier,
-                      DoubleSupplier hoodSupplier,
-                      BooleanSupplier feedGate) {
-    this(shooter, feeder, hood, pivot, roller,
-        rpmSupplier, hoodSupplier, () -> true, feedGate);
-  }
-
-  /**
-   * @param armGate when true, apply the RPM and hood suppliers and run the flywheel
-   * @param feedGate extra condition (alignment, in-range distance) required before feeding
-   */
-  public ShootCommand(ShooterSubsystem shooter,
-                      FeederSubsystem feeder,
-                      HoodSubsystem hood,
-                      IntakePivotSubsystem pivot,
-                      IntakeRollerSubsystem roller,
-                      DoubleSupplier rpmSupplier,
-                      DoubleSupplier hoodSupplier,
-                      BooleanSupplier armGate,
                       BooleanSupplier feedGate) {
     this.shooter = shooter;
     this.feeder = feeder;
-    this.hood = hood;
     this.pivot = pivot;
     this.roller = roller;
-    this.rpmSupplier = rpmSupplier;
-    this.hoodSupplier = hoodSupplier;
-    this.armGate = armGate;
     this.feedGate = feedGate;
-    addRequirements(shooter, feeder, hood, pivot, roller);
+    addRequirements(shooter, feeder, pivot, roller);
   }
 
   @Override
@@ -96,7 +54,8 @@ public class ShootCommand extends Command {
     pivotTargetOpen = false;
     shooterWasRunning = shooter.isRunning();
 
-    applyShotProfile();
+    shooter.setTargetRpm(ShooterConstants.DEFAULT_TARGET_RPM);
+    shooter.start();
     feeder.stop();
     roller.stop();
     pivot.close();
@@ -107,13 +66,13 @@ public class ShootCommand extends Command {
 
   @Override
   public void execute() {
-    applyShotProfile();
+    shooter.setTargetRpm(ShooterConstants.DEFAULT_TARGET_RPM);
+    shooter.start();
 
-    boolean ready = shooter.isReadyToFeed() && hood.isReady();
+    boolean ready = shooter.isReadyToFeed();
     boolean feed = feedGate.getAsBoolean();
 
     if (state == State.SHOOTING && !(ready && feed)) {
-      // lost speed, hood angle, distance or aim: stop feeding until they are good again
       feeder.stop();
       roller.setShootAssist(false);
       oscTimer.stop();
@@ -161,16 +120,6 @@ public class ShootCommand extends Command {
     SmartDashboard.putBoolean("Shoot/PivotTargetOpen", pivotTargetOpen);
   }
 
-  /** Applies the distance (or manual) setpoints only while this shot is allowed to arm. */
-  private void applyShotProfile() {
-    if (!armGate.getAsBoolean()) {
-      return;
-    }
-    shooter.setTargetRpm(rpmSupplier.getAsDouble());
-    hood.setTargetDegrees(hoodSupplier.getAsDouble());
-    shooter.start();
-  }
-
   @Override
   public void end(boolean interrupted) {
     feeder.stop();
@@ -178,12 +127,9 @@ public class ShootCommand extends Command {
     pivot.close();
 
     if (shooterWasRunning) {
-      // was pre-spun with the B toggle: leave it running at the manual rpm
-      shooter.setTargetRpm(shooter.getManualRpm());
-      hood.setTargetDegrees(hood.getManualDegrees());
+      shooter.setTargetRpm(ShooterConstants.DEFAULT_TARGET_RPM);
     } else {
       shooter.stop();
-      hood.stow();
     }
 
     oscTimer.stop();

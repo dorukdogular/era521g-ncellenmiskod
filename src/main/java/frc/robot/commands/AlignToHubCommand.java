@@ -1,6 +1,5 @@
 package frc.robot.commands;
 
-import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.math.MathUtil;
@@ -15,16 +14,15 @@ import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.util.BandLatch;
 
 /**
- * Hold-to-align command. The driver keeps control of forward/back, only the rotation is taken
- * over and driven to zero tx on our own alliance's HUB tag. With no tag in view the robot does
- * not rotate and {@link #isAligned()} is false.
+ * Hold-to-align command. The driver keeps control of forward/back. Only rotation is taken over
+ * and driven until the hub tag is centered (tx near zero). With no tag the robot does not rotate
+ * and {@link #isAligned()} is false.
  */
 public class AlignToHubCommand extends Command {
 
   private final DriveSubsystem drive;
   private final VisionSubsystem vision;
   private final DoubleSupplier throttleSupplier;
-  private final BooleanSupplier turnEnabled;
 
   private final PIDController pid =
       new PIDController(AlignConstants.KP, AlignConstants.KI, AlignConstants.KD);
@@ -40,20 +38,9 @@ public class AlignToHubCommand extends Command {
   public AlignToHubCommand(DriveSubsystem drive,
                            VisionSubsystem vision,
                            DoubleSupplier throttleSupplier) {
-    this(drive, vision, throttleSupplier, () -> true);
-  }
-
-  /**
-   * @param turnEnabled when false, forward/back still works but the robot does not steer at the tag
-   */
-  public AlignToHubCommand(DriveSubsystem drive,
-                           VisionSubsystem vision,
-                           DoubleSupplier throttleSupplier,
-                           BooleanSupplier turnEnabled) {
     this.drive = drive;
     this.vision = vision;
     this.throttleSupplier = throttleSupplier;
-    this.turnEnabled = turnEnabled;
     addRequirements(drive);
 
     SmartDashboard.setDefaultNumber("Align/kP", AlignConstants.KP);
@@ -62,6 +49,7 @@ public class AlignToHubCommand extends Command {
     SmartDashboard.setDefaultNumber("Align/MinTurn", AlignConstants.MIN_TURN_OUTPUT);
   }
 
+  /** True once the tag has stayed centered for the debounce time. */
   public boolean isAligned() {
     return aligned;
   }
@@ -114,14 +102,13 @@ public class AlignToHubCommand extends Command {
           SmartDashboard.getNumber("Align/MinTurn", AlignConstants.MIN_TURN_OUTPUT), 0.0, 0.2);
     }
 
-    // same sign and shape as the normal drive command
     double throttle = MathUtil.applyDeadband(
         DriveCommand.forwardFromStick(throttleSupplier.getAsDouble()), DriveConstants.DEADBAND);
     throttle = Math.copySign(throttle * throttle, throttle);
 
     double turn = 0.0;
 
-    if (turnEnabled.getAsBoolean() && vision.hasTarget()) {
+    if (vision.hasTarget()) {
       double tx = vision.getTxDegrees();
       aligned = alignedLatch.update(tx, true);
 

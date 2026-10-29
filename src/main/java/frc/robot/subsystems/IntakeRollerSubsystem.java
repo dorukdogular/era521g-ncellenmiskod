@@ -1,7 +1,6 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.PersistMode;
-import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
@@ -15,14 +14,11 @@ import frc.robot.Constants;
 import frc.robot.Constants.CAN;
 import frc.robot.Constants.IntakeRollerConstants;
 import frc.robot.Constants.ShootCommandConstants;
-import frc.robot.util.AntiJam;
 
 public class IntakeRollerSubsystem extends SubsystemBase {
 
   private final SparkMax roller;
-  private final RelativeEncoder encoder;
   private final IntakePivotSubsystem pivot;
-  private final AntiJam antiJam = new AntiJam();
 
   private boolean toggleRunning = false;
   private boolean shootAssist = false;
@@ -40,8 +36,6 @@ public class IntakeRollerSubsystem extends SubsystemBase {
         .openLoopRampRate(IntakeRollerConstants.RAMP_RATE);
 
     roller.configure(cfg, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-
-    encoder = roller.getEncoder();
 
     SmartDashboard.setDefaultNumber("Intake/RollerSpeed", IntakeRollerConstants.DEFAULT_SPEED);
   }
@@ -72,7 +66,7 @@ public class IntakeRollerSubsystem extends SubsystemBase {
 
   /**
    * Used by ShootCommand: runs the roller at the assist speed (to help the feed) regardless of
-   * the toggle state. The motor is only written in periodic(), so anti-jam applies here too.
+   * the toggle state. The motor is only written in periodic().
    */
   public void setShootAssist(boolean enabled) {
     shootAssist = enabled;
@@ -97,13 +91,10 @@ public class IntakeRollerSubsystem extends SubsystemBase {
       commanded = dashboardSpeed;
     }
 
-    double current = roller.getOutputCurrent();
-    roller.set(antiJam.calculate(commanded, current, encoder.getVelocity()));
+    roller.set(commanded);
 
     SmartDashboard.putBoolean("Intake/RollerRunning", toggleRunning);
-    SmartDashboard.putNumber("Intake/RollerCurrent", current);
-    SmartDashboard.putBoolean("Intake/RollerJam", antiJam.isJamActive());
-    SmartDashboard.putNumber("Intake/RollerJamCount", antiJam.getTotalJams());
+    SmartDashboard.putNumber("Intake/RollerCurrent", roller.getOutputCurrent());
     SmartDashboard.putNumber("Intake/RollerTemp", roller.getMotorTemperature());
   }
 }

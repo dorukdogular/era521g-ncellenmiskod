@@ -18,8 +18,6 @@ public final class Constants {
     public static final int INTAKE_PIVOT_ID  = 6;
     public static final int SHOOTER_ID       = 7;
     public static final int FEEDER_ID        = 8;
-    // olc: hood neo'sunun gercek can id'si. 1-8 kullanimda, bos bir id yaz
-    public static final int HOOD_ID          = 9;
   }
 
   public static final class OIConstants {
@@ -85,44 +83,6 @@ public final class Constants {
     public static final double RAMP_RATE  = 0.25;
   }
 
-  public static final class HoodConstants {
-    private HoodConstants() {}
-
-    // neo pinyon 10 dis, hood dislisi 21 dis -> motor/hood = 21/10
-    public static final double GEAR_RATIO                 = 21.0 / 10.0;
-    public static final double POSITION_CONVERSION_FACTOR = 360.0 / GEAR_RATIO; // hood derecesi
-
-    // hood acisi = HOME'dan (robot acilirken durdugu en alcak konum) itibaren derece. 0 = home.
-    // robotu her zaman hood HOME'da iken ac! enkoder acilista 0 kabul ediliyor (intake pivot ile ayni)
-    public static final double HOME_DEGREES    = 0.0;
-    // olc: hood'un mekanik olarak gidebildigi en uc. soft limitler bunun biraz disinda
-    public static final double MIN_DEGREES     = 0.0;
-    public static final double MAX_DEGREES     = 40.0;
-    public static final double SOFT_LIMIT_MARGIN = 2.0;
-
-    // manuel atista (sag tetik) kullanilan varsayilan hood acisi, dashboard'dan degisir (tuning acikken)
-    public static final double DEFAULT_DEGREES = 20.0;
-
-    // hood donus yonu ters ise true yap (hood acisi arttikca top daha yuksege cikmali)
-    public static final boolean INVERTED = false;
-
-    public static final double DEFAULT_KP = 0.03;
-    public static final double MAX_KP     = 0.10;
-    public static final double OUTPUT_MIN = -0.5;
-    public static final double OUTPUT_MAX =  0.5;
-
-    // hazir: |aci - hedef| < ready_tol 0.10 sn boyunca. hazirdan cikis: > drop_tol
-    public static final double READY_TOLERANCE_DEGREES = 1.0;
-    public static final double DROP_TOLERANCE_DEGREES  = 2.5;
-    public static final double READY_DEBOUNCE_SECONDS  = 0.10;
-
-    // yeni hedef mevcut hedeften bu kadar azsa yok sayilir (ty gurultusu hood'u titretmesin)
-    public static final double RETARGET_DEADBAND_DEGREES = 0.5;
-
-    public static final int CURRENT_LIMIT = 30;
-    public static final double RAMP_RATE  = 0.15;
-  }
-
   public static final class IntakeRollerConstants {
     private IntakeRollerConstants() {}
 
@@ -139,7 +99,7 @@ public final class Constants {
     public static final double NEO_FREE_SPEED_RPM = 5676.0;
     public static final double NOMINAL_VOLTAGE    = 12.0;
 
-    // manuel atista (sag tetik) kullanilan varsayilan rpm, dashboard'dan degisir (tuning acikken)
+    // atis hep bu sabit rpm
     public static final double DEFAULT_TARGET_RPM = 5000.0;
 
     // hedef rpm'in izin verilen araligi. max'i neo'nun %88'inden fazla yapma
@@ -221,8 +181,7 @@ public final class Constants {
     // limelight arayuzundeki hostname ile ayni olmali (varsayilan "limelight")
     public static final String LIMELIGHT_NAME = "limelight";
 
-    // SADECE BILGI ICIN (dashboard'da Vision/Distance gosterir). rpm bunlara bagli DEGIL, rpm dogrudan ty acisindan hesaplanir.
-    // kamera egiminde 1 derece hata 3 m'de ~0.26 m mesafe hatasi yapar, bu yuzden mesafeyi rpm icin kullanmiyoruz.
+    // SADECE BILGI ICIN (dashboard'da Vision/Distance). atis mesafesi ty ile tutulur, bu metre hesabi suruse karismaz.
     // olc: lens merkezinin yerden yuksekligi, metre. simdiki deger TAHMINI
     public static final double CAMERA_HEIGHT_METERS = 0.50;
     // olc: kameranin yataya gore yukari acisi, derece (yukari pozitif). simdiki deger TAHMINI
@@ -252,36 +211,6 @@ public final class Constants {
     // bilgi amacli mesafe hesabinin gecerli araligi
     public static final double MIN_VALID_DISTANCE_METERS = 0.8;
     public static final double MAX_VALID_DISTANCE_METERS = 6.0;
-
-    // true: gecerli ty varken rpm ve hood tablodan gelir, PID oturunca besleme baslar.
-    // false: eski davranis, hep manuel rpm/hood.
-    // TABLO HALA OLCULMEMIS yer tutucu. Egri dogru yone gider ama sayilar atis gunu degismeli.
-    public static final boolean USE_DISTANCE_SHOT = true;
-
-    // tek karede ty'nin tabloya yansiyabilecegi en fazla degisim (20 ms dongu basina derece).
-    // ani tag sicramasi rpm'i ziplatmasin; gercek surus bundan yavas ty degistirir.
-    public static final double TY_SLEW_DEGREES_PER_CYCLE = 0.5;
-
-    // {ty (derece), rpm, hood acisi (derece)}. ty = limelight'in gosterdigi dikey aci (dashboard: Vision/Ty).
-    // hedefe YAKINKEN ty BUYUK, uzakken kucuk (negatif).
-    // doldurma: robotu hub'a belli mesafelerde (4-5 nokta, seritle olc) hizala, Vision/Ty'yi oku,
-    // top girene kadar rpm'i ve hood acisini ayarla (Shooter/TargetRPM, Hood/ManualDegrees), ucunu de yaz.
-    // satir sirasi onemli degil ama ayni ty iki kez olmasin. rpm'ler MIN/MAX_TARGET_RPM, hood acilari
-    // HoodConstants.MIN/MAX_DEGREES araliginda olmali.
-    // asagidakiler TAHMINI placeholder. mutlaka olc ve degistir.
-    // uc satirlar, rehberdeki yakin (~+11 ty) ve uzak ucun tablo disina dusmemesi icin
-    // ayni egimle uzatildi. 5000 rpm tavani yuku tutmayabilir; olcumde dusur.
-    public static final double[][] SHOT_BY_TY_TABLE = {
-        {-12.0, 5000.0, 35.0},
-        { -8.0, 5000.0, 30.0},
-        { -4.0, 4400.0, 25.0},
-        {  0.0, 3800.0, 20.0},
-        {  6.0, 3200.0, 12.0},
-        { 12.0, 2600.0,  4.0},
-    };
-
-    // tablonun ty araliginin disina bu kadar derece tasarsa rpm hesaplanmaz (guvenli varsayilana doner)
-    public static final double TABLE_MARGIN_DEGREES = 1.5;
   }
 
   public static final class AlignConstants {
