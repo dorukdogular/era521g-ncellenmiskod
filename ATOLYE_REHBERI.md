@@ -51,7 +51,7 @@ Tek kontrolcü (port 0, Xbox). Tuşlar A, B ve D-pad için 0.06 s debounce var.
 ### Atış sırasında ne olur (sağ ve sol tetik aynı)
 1. **SPINNING_UP**: tetiğe basılınca pivot kapanır; shooter hedef RPM'e çıkar, feeder ve roller **durur**.
 2. (Sadece sol tetik) **WAITING_AIM**: shooter hazır ama robot henüz hizalı değil, feeder bekler.
-3. **SHOOTING** (shooter hazır + hood hazır + mesafe geçerli veya tag yok + sol tetikte ayrıca hizalı): feeder çalışır, **pivot 0° ↔ 90° arasında yukarı-aşağı salınır ve topları feeder'a geri iter** (pivot hedefine varınca veya en geç 0.45 s'de yön değiştirir), roller pivot **açıkken** yardım eder. `Shoot/Balls` her flywheel dalışında artar.
+3. **SHOOTING** (shooter hazır + hood hazır + mesafe geçerli veya tag yok + sol tetikte ayrıca hizalı): feeder çalışır, **pivot 0° ↔ 90° arasında yukarı-aşağı salınır ve topları feeder'a geri iter** (pivot hedefine varınca veya en geç 0.45 s'de yön değiştirir), roller pivot **açıkken** yardım eder. Tetik basılı kaldığı sürece devam eder.
 4. RPM çok düşerse (hedef ±350 rpm dışı) veya hizayı kaybederse feeder ve roller durur, **pivot salınımı da durur ve pivot olduğu yerde kalır**; tekrar hazır olunca pivot açılarak salınım yeniden başlar.
 5. Tetik bırakılınca: feeder ve roller durur, pivot kapanır. Shooter, **B ile önceden açılmadıysa** durur; açıktıysa manuel RPM'de dönmeye devam eder.
 
@@ -250,7 +250,7 @@ Alliance'ı `Vision/AllianceOverride`'dan KIRMIZI seç, kırmızı hub'ın **ort
 - [ ] `TUNING_ENABLED = false` (dashboard'dan yanlış değer girilemesin).
 - [ ] Bu gecenin değerleri `Constants.java`'ya yazıldı (kV, kP, MIN_TURN, kamera, tablo, anti-jam eşikleri, AIM_OFFSET).
 - [ ] `./gradlew build` geçiyor.
-- [ ] Otonom: hizala, mesafeye göre hood/RPM, `Shoot/Balls` 8 olunca dur. Tag yoksa atmaz. Süre dolunca da durur.
+- [ ] Otonom: hizala, mesafeye göre hood/RPM, hazır olunca besle. Tag yoksa atmaz. Otonom bitene kadar sürer.
 - [ ] Limelight'ta iki pipeline ve `ID Filters` dolu, kamera statik IP'de, ayarlar yedeklendi.
 - [ ] Robot açılırken intake kapalı **ve hood HOME'da**.
 

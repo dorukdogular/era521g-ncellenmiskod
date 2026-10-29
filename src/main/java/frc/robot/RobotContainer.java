@@ -10,7 +10,6 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import frc.robot.Constants.OIConstants;
-import frc.robot.Constants.ShootCommandConstants;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.commands.AlignToHubCommand;
 import frc.robot.commands.DriveCommand;
@@ -57,11 +56,11 @@ public class RobotContainer {
   private final ShootCommand distanceShoot = new ShootCommand(
       shooter, feeder, hood, intakePivot, intakeRoller,
       this::shotRpm, this::shotHood,
-      this::armManualShot, this::feedManualShot, 0);
+      this::armManualShot, this::feedManualShot);
   private final ShootCommand aimedShoot = new ShootCommand(
       shooter, feeder, hood, intakePivot, intakeRoller,
       this::shotRpm, this::shotHood,
-      this::armAimedShot, this::feedAimedShot, 0);
+      this::armAimedShot, this::feedAimedShot);
 
   private void configureBindings() {
     // These toggles intentionally have NO subsystem requirements: with requirements, pressing
@@ -222,8 +221,8 @@ public class RobotContainer {
   }
 
   /**
-   * Aim at our hub, set hood and RPM from the distance table, and feed until 8 balls are counted.
-   * Ends earlier on the timeout if the tag never appears or the dips are not detected.
+   * Aim at our hub and shoot from the distance table for the whole autonomous period.
+   * Feeding starts only after the tag is in range and the robot is aligned. No ball count.
    */
   public Command getAutonomousCommand() {
     AlignToHubCommand autoAlign = new AlignToHubCommand(drive, vision, () -> 0.0);
@@ -232,10 +231,7 @@ public class RobotContainer {
         this::autoRpm, this::autoHood,
         () -> !VisionConstants.USE_DISTANCE_SHOT || vision.hasInRangeShot(),
         () -> autoAlign.isAligned()
-            && (!VisionConstants.USE_DISTANCE_SHOT || vision.hasInRangeShot()),
-        ShootCommandConstants.AUTO_BALL_COUNT);
-    return Commands.deadline(shoot, autoAlign)
-        .withTimeout(ShootCommandConstants.AUTO_TIMEOUT_SECONDS)
-        .withName("Shoot8");
+            && (!VisionConstants.USE_DISTANCE_SHOT || vision.hasInRangeShot()));
+    return Commands.deadline(shoot, autoAlign).withName("AlignAndShoot");
   }
 }

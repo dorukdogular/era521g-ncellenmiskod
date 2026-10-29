@@ -12,7 +12,6 @@ import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IntakePivotSubsystem;
 import frc.robot.subsystems.IntakeRollerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
-import frc.robot.util.BallShotCounter;
 
 /**
  * Hold-to-shoot command. While {@code armGate} is true, sets the shooter RPM and hood angle from
@@ -22,7 +21,7 @@ import frc.robot.util.BallShotCounter;
  *
  * <p>On release, the feeder, roller and pivot stop and the hood goes home. The shooter stops too
  * unless it was already running before the command (then the hood returns to the manual angle).
- * With a positive {@code ballGoal} the command ends once that many flywheel dips have been counted.
+ * The command runs until it is cancelled.
  */
 public class ShootCommand extends Command {
 
@@ -37,26 +36,21 @@ public class ShootCommand extends Command {
   private final DoubleSupplier hoodSupplier;
   private final BooleanSupplier armGate;
   private final BooleanSupplier feedGate;
-  private final int ballGoal;
 
   private final Timer oscTimer = new Timer();
-  private final BallShotCounter ballCounter = new BallShotCounter(
-      ShootCommandConstants.BALL_DIP_RPM,
-      ShootCommandConstants.BALL_RECOVER_RPM,
-      ShootCommandConstants.BALL_MIN_INTERVAL_SECONDS);
 
   private State state = State.SPINNING_UP;
   private boolean pivotTargetOpen = false;
   private boolean shooterWasRunning = false;
 
-  /** Manual shot: dashboard/default RPM and hood angle, no aim gate, no ball limit. */
+  /** Manual shot: dashboard/default RPM and hood angle, no aim gate. */
   public ShootCommand(ShooterSubsystem shooter,
                       FeederSubsystem feeder,
                       HoodSubsystem hood,
                       IntakePivotSubsystem pivot,
                       IntakeRollerSubsystem roller) {
     this(shooter, feeder, hood, pivot, roller,
-        shooter::getManualRpm, hood::getManualDegrees, () -> true, () -> true, 0);
+        shooter::getManualRpm, hood::getManualDegrees, () -> true, () -> true);
   }
 
   public ShootCommand(ShooterSubsystem shooter,
@@ -68,13 +62,12 @@ public class ShootCommand extends Command {
                       DoubleSupplier hoodSupplier,
                       BooleanSupplier feedGate) {
     this(shooter, feeder, hood, pivot, roller,
-        rpmSupplier, hoodSupplier, () -> true, feedGate, 0);
+        rpmSupplier, hoodSupplier, () -> true, feedGate);
   }
 
   /**
    * @param armGate when true, apply the RPM and hood suppliers and run the flywheel
    * @param feedGate extra condition (alignment, in-range distance) required before feeding
-   * @param ballGoal stop after this many counted shots; 0 means run until cancelled
    */
   public ShootCommand(ShooterSubsystem shooter,
                       FeederSubsystem feeder,
@@ -84,8 +77,7 @@ public class ShootCommand extends Command {
                       DoubleSupplier rpmSupplier,
                       DoubleSupplier hoodSupplier,
                       BooleanSupplier armGate,
-                      BooleanSupplier feedGate,
-                      int ballGoal) {
+                      BooleanSupplier feedGate) {
     this.shooter = shooter;
     this.feeder = feeder;
     this.hood = hood;
@@ -95,7 +87,6 @@ public class ShootCommand extends Command {
     this.hoodSupplier = hoodSupplier;
     this.armGate = armGate;
     this.feedGate = feedGate;
-    this.ballGoal = ballGoal;
     addRequirements(shooter, feeder, hood, pivot, roller);
   }
 
@@ -104,7 +95,6 @@ public class ShootCommand extends Command {
     state = State.SPINNING_UP;
     pivotTargetOpen = false;
     shooterWasRunning = shooter.isRunning();
-    ballCounter.reset();
 
     applyShotProfile();
     feeder.stop();
@@ -167,13 +157,8 @@ public class ShootCommand extends Command {
         break;
     }
 
-    ballCounter.update(
-        shooter.getCurrentRPM(), shooter.getTargetRpm(), state == State.SHOOTING);
-
     SmartDashboard.putString("Shoot/State", state.name());
     SmartDashboard.putBoolean("Shoot/PivotTargetOpen", pivotTargetOpen);
-    SmartDashboard.putNumber("Shoot/Balls", ballCounter.getCount());
-    SmartDashboard.putNumber("Shoot/BallGoal", ballGoal);
   }
 
   /** Applies the distance (or manual) setpoints only while this shot is allowed to arm. */
@@ -205,10 +190,5 @@ public class ShootCommand extends Command {
     oscTimer.reset();
 
     SmartDashboard.putString("Shoot/State", "IDLE");
-  }
-
-  @Override
-  public boolean isFinished() {
-    return ballGoal > 0 && ballCounter.getCount() >= ballGoal;
   }
 }

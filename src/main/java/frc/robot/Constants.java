@@ -213,14 +213,6 @@ public final class Constants {
 
     public static final double OSCILLATION_MAX_PERIOD = 0.45;
     public static final double ROLLER_ASSIST_SPEED    = -1.0;
-
-    // top sayaci: atis sirasinda rpm hedefin DIP kadar altina inip RECOVER'a cikinca 1 top
-    public static final double BALL_DIP_RPM = 180.0;
-    public static final double BALL_RECOVER_RPM = 80.0;
-    public static final double BALL_MIN_INTERVAL_SECONDS = 0.15;
-
-    public static final int AUTO_BALL_COUNT = 8;
-    public static final double AUTO_TIMEOUT_SECONDS = 12.0;
   }
 
   public static final class VisionConstants {
