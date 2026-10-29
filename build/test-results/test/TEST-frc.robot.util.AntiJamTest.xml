@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="frc.robot.util.AntiJamTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-29T05:40:12" hostname="Doruk-MacBook-Pro-2.local" time="0.005">
+<testsuite name="frc.robot.util.AntiJamTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-29T10:53:28" hostname="Doruk-MacBook-Pro-2.local" time="0.006">
   <properties/>
-  <testcase name="repeatedJamsTriggerCooldownWithZeroOutput()" classname="frc.robot.util.AntiJamTest" time="0.001"/>
+  <testcase name="repeatedJamsTriggerCooldownWithZeroOutput()" classname="frc.robot.util.AntiJamTest" time="0.002"/>
   <testcase name="reverseDirectionFollowsCommandSign()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
   <testcase name="releasingTheCommandForgetsEarlierJams()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
   <testcase name="zeroCommandResetsEverything()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
@@ -9,7 +9,7 @@
   <testcase name="heavyLoadWhileStillSpinningIsNotAJam()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
   <testcase name="passesCommandThroughWhenRunningNormally()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
   <testcase name="smallCommandBelowMinCommandNeverCountsAsJam()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
-  <testcase name="jamTriggersReversePulseThenResumes()" classname="frc.robot.util.AntiJamTest" time="0.001"/>
+  <testcase name="jamTriggersReversePulseThenResumes()" classname="frc.robot.util.AntiJamTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
