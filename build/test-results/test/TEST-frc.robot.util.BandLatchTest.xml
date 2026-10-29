@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.robot.util.BandLatchTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-29T05:40:12" hostname="Doruk-MacBook-Pro-2.local" time="0.004">
+  <properties/>
+  <testcase name="disablingResetsTheLatch()" classname="frc.robot.util.BandLatchTest" time="0.001"/>
+  <testcase name="exitToleranceMustNotBeSmallerThanEnter()" classname="frc.robot.util.BandLatchTest" time="0.001"/>
+  <testcase name="staysLatchedThroughSmallDipAndDropsOnlyOutsideExitBand()" classname="frc.robot.util.BandLatchTest" time="0.0"/>
+  <testcase name="nanErrorNeverLatches()" classname="frc.robot.util.BandLatchTest" time="0.001"/>
+  <testcase name="notReadyUntilDebounceElapsed()" classname="frc.robot.util.BandLatchTest" time="0.0"/>
+  <testcase name="signOfErrorIsIgnored()" classname="frc.robot.util.BandLatchTest" time="0.0"/>
+  <testcase name="leavingTheBandBeforeDebounceRestartsTheTimer()" classname="frc.robot.util.BandLatchTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

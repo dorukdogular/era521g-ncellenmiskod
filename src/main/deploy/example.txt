@@ -1,0 +1,3 @@
+Files placed here will be deployed to the RoboRIO into the
+/home/lvuser/deploy directory. Access with wpi::filesystem::getDeployDirectory
+(C++) or Filesystem.getDeployDirectory (Java).

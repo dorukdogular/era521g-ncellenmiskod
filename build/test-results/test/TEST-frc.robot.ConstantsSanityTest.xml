@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.robot.ConstantsSanityTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-29T05:40:12" hostname="Doruk-MacBook-Pro-2.local" time="0.005">
+  <properties/>
+  <testcase name="rpmTableIsSafe()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="hoodConstantsAreConsistent()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="alignConstantsAreSane()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="shooterVelocityGainsMatchTheNeo()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="pivotLimitsAreConsistent()" classname="frc.robot.ConstantsSanityTest" time="0.001"/>
+  <testcase name="driveCurrentLimitsAreForCims()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="neoCurrentLimitsAreInASafeRange()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="alignFadeSettingsAreSane()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="jamCurrentIsBelowTheCurrentLimit()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="canIdsAreUnique()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <testcase name="hubTagSetsAreCorrectAndDisjoint()" classname="frc.robot.ConstantsSanityTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
