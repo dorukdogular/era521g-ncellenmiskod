@@ -15,6 +15,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Constants.CAN;
@@ -114,10 +115,23 @@ public class ShooterSubsystem extends SubsystemBase {
     return running;
   }
 
-  /** Sets the flywheel target, clamped to the safe range. Does not start the shooter. */
+  /**
+   * Sets the flywheel target, clamped to the safe range. Does not start the shooter.
+   * Changes smaller than the retarget deadband are ignored so ty noise does not kick the PID.
+   * A real step that the wheel is not already inside the ready band drops Ready immediately,
+   * so the feeder cannot start on a stale "at speed" flag.
+   */
   public void setTargetRpm(double rpm) {
-    targetRpm = MathUtil.clamp(
+    double next = MathUtil.clamp(
         rpm, ShooterConstants.MIN_TARGET_RPM, ShooterConstants.MAX_TARGET_RPM);
+    if (Math.abs(next - targetRpm) < ShooterConstants.RETARGET_DEADBAND_RPM) {
+      return;
+    }
+    targetRpm = next;
+    if (Math.abs(getCurrentRPM() - targetRpm) > ShooterConstants.READY_TOLERANCE_RPM) {
+      readyLatch.reset();
+      ready = false;
+    }
   }
 
   /** The RPM used for manual shots (dashboard value while tuning, otherwise the constant). */
@@ -144,13 +158,18 @@ public class ShooterSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     if (Constants.TUNING_ENABLED) {
-      double newManual = MathUtil.clamp(
+      manualRpm = MathUtil.clamp(
           SmartDashboard.getNumber("Shooter/TargetRPM", manualRpm),
           ShooterConstants.MIN_TARGET_RPM, ShooterConstants.MAX_TARGET_RPM);
-      if (!running && newManual != manualRpm) {
-        targetRpm = newManual;
+      // B toggle has no command owner. ShootCommand owns the setpoint while it is scheduled,
+      // so a dashboard edit must not fight the distance table.
+      if (CommandScheduler.getInstance().requiring(this) == null) {
+        if (!running) {
+          targetRpm = manualRpm;
+        } else {
+          setTargetRpm(manualRpm);
+        }
       }
-      manualRpm = newManual;
 
       double newKp = MathUtil.clamp(
           SmartDashboard.getNumber("Shooter/kP", kP), 0.0, ShooterConstants.MAX_KP);
@@ -164,6 +183,7 @@ public class ShooterSubsystem extends SubsystemBase {
         SparkMaxConfig liveCfg = new SparkMaxConfig();
         liveCfg.closedLoop.pid(kP, 0.0, 0.0);
         liveCfg.closedLoop.feedForward.kV(kV);
+        liveCfg.closedLoop.outputRange(0.0, 1.0);
         shooter.configure(liveCfg,
             ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
       }

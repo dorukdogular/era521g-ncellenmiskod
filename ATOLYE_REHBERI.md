@@ -36,14 +36,14 @@ Tek kontrolcü (port 0, Xbox). Tuşlar A, B ve D-pad için 0.06 s debounce var.
 
 | Tuş | Ne yapar |
 |---|---|
-| **Sol çubuk Y** | İleri / geri sürüş (arcade). Eskiden olduğu gibi işaret çevrilmedi, ileri itince değer negatif gelir |
-| **Sağ çubuk X** | Dönüş (arcade). Çubuk bırakılınca **0.08 deadband** içinde robot durur |
+| **Sol çubuk Y** | İleri / geri. Çubuk ileri itilince ham değer negatif; kod bunu çevirir, robot ileri gider |
+| **Sağ çubuk X** | Dönüş. Sağa itince robot saat yönünde döner (WPILib 2026'da pozitif dönüş saat yönünün tersidir, kod çevirir). Bırakınca **0.08 deadband** |
 | **A** | Intake roller aç/kapa. **Sadece pivot açıkken** başlar; pivot kapanırsa roller kendiliğinden durur |
 | **B** | Shooter aç/kapa (manuel ön ısıtma, `Shooter/TargetRPM` hızında). Disable'da kapanır |
 | **D-pad (herhangi bir yön)** | Intake pivot aç/kapa (0° ↔ 90°) |
-| **Sağ tetik (>0.5) veya Sağ bumper** (basılı tut) | **Manuel atış**: shooter manuel RPM'e çıkar, hazır olunca besler. Hizalama yok |
-| **Sol tetik (>0.5) veya Sol bumper** (basılı tut) | **Otomatik nişan + atış**: robot hub tag'ine döner, shooter RPM'e çıkar, **hazır ve hizalı** olunca besler. Sol çubuk Y ile ileri/geri sürüş devam eder |
-| Kontrolcü titreşimi | Hizalı **ve** shooter hazırken otomatik titrer |
+| **Sağ tetik (>0.5) veya Sağ bumper** (basılı tut) | **Mesafeli atış.** Tag menzildeyse robot döner, RPM ve hood `ty`'den gelir; shooter, hood ve hiza hazır olunca besler. Tag yoksa manuel RPM/hood, dönüş beklemez. Tag tablonun dışındaysa beslemez |
+| **Sol tetik (>0.5) veya Sol bumper** (basılı tut) | **Nişan + mesafeli atış.** Hub tag'ine döner, RPM ve hood `ty`'den ayarlanır, shooter + hood hazır **ve** hizalı olunca besler. Sol çubuk Y ile ileri/geri devam eder |
+| Kontrolcü titreşimi | Feeder gerçekten dönerken titrer |
 | Diğer tuşlar (Start, Back, X, Y, çubuk basma) | Atanmamış |
 
 **A, B ve D-pad atış sırasında basılırsa atışı artık iptal etmez** (eskiden iptal ediyordu).
@@ -51,7 +51,7 @@ Tek kontrolcü (port 0, Xbox). Tuşlar A, B ve D-pad için 0.06 s debounce var.
 ### Atış sırasında ne olur (sağ ve sol tetik aynı)
 1. **SPINNING_UP**: tetiğe basılınca pivot kapanır; shooter hedef RPM'e çıkar, feeder ve roller **durur**.
 2. (Sadece sol tetik) **WAITING_AIM**: shooter hazır ama robot henüz hizalı değil, feeder bekler.
-3. **SHOOTING** (shooter hazır + gerekirse hizalı): feeder çalışır, **pivot 0° ↔ 90° arasında yukarı-aşağı salınır ve topları feeder'a geri iter** (pivot hedefine varınca veya en geç 0.45 s'de yön değiştirir), roller pivot **açıkken** yardım eder.
+3. **SHOOTING** (shooter hazır + hood hazır + mesafe geçerli veya tag yok + sol tetikte ayrıca hizalı): feeder çalışır, **pivot 0° ↔ 90° arasında yukarı-aşağı salınır ve topları feeder'a geri iter** (pivot hedefine varınca veya en geç 0.45 s'de yön değiştirir), roller pivot **açıkken** yardım eder. `Shoot/Balls` her flywheel dalışında artar.
 4. RPM çok düşerse (hedef ±350 rpm dışı) veya hizayı kaybederse feeder ve roller durur, **pivot salınımı da durur ve pivot olduğu yerde kalır**; tekrar hazır olunca pivot açılarak salınım yeniden başlar.
 5. Tetik bırakılınca: feeder ve roller durur, pivot kapanır. Shooter, **B ile önceden açılmadıysa** durur; açıktıysa manuel RPM'de dönmeye devam eder.
 
@@ -237,11 +237,11 @@ Alliance'ı `Vision/AllianceOverride`'dan KIRMIZI seç, kırmızı hub'ın **ort
 5. **Robot açılırken hood HOME'da (en alçakta) olmalı.** Enkoder açılışta 0 kabul edilir (intake pivot ile aynı mantık).
 6. Hood titriyorsa `Hood/kP`'yi düşür, geç kalıyorsa artır. `Hood/Ready` hedefte true olmalı.
 
-**Tabloyu doldur:** `VisionConstants.SHOT_BY_TY_TABLE` satırları `{ty, rpm, hood derecesi}`; değerler **TAHMİNİ placeholder**. `USE_DISTANCE_SHOT = false` iken kullanılmaz (rpm ve hood manuel değerde kalır).
+**Tabloyu doldur:** `VisionConstants.SHOT_BY_TY_TABLE` satırları `{ty, rpm, hood derecesi}`. `USE_DISTANCE_SHOT = true`: geçerli `ty` varken atış bu tabloyu kullanır, PID o banda oturunca besleme başlar. Tablodaki sayılar hâlâ **tahmini**; eğri doğru yöne gider ama atış günü ölçmeden isabet bekleme. Tag görünmüyorsa sağ tetik manuel değere düşer. Tag görünüp `ty` tablo dışındaysa besleme yapılmaz.
 1. Robotu hub'a hizala, mesafeyi **şeritle** ölç (1.5 / 2.5 / 3.5 / 4.5 m gibi 4-5 nokta). Gerçek atış pozisyonlarını seç.
-2. Her noktada: `Vision/Ty`'yi **not et**, sağ tetikle manuel atış yaparak topların girdiği RPM'i (`Shooter/TargetRPM`) ve hood açısını (`Hood/ManualDegrees`) bul. Her mesafede birden fazla (rpm, açı) çifti işe yarar; **tutarlı** olanı seç (örn. hep en düz yörünge ya da hep en yüksek giriş açısı).
+2. Her noktada: `Vision/Ty`'yi **not et**. Tabloyu aramak için `Shoot/UseDistance = false` yap (tuning açıkken sağ tetik o zaman dashboard RPM/hood kullanır). Sağ tetikle topların girdiği RPM'i (`Shooter/TargetRPM`) ve hood açısını (`Hood/ManualDegrees`) bul. Bitince `Shoot/UseDistance = true` bırak.
 3. `{ty, rpm, hood}` üçlülerini tabloya yaz. Yakın = büyük `ty`. RPM'ler 2500-5000, hood açıları `MIN..MAX_DEGREES` arasında olmalı (birim test kontrol eder).
-4. Tabloyu doldurunca `USE_DISTANCE_SHOT = true` yap, yeniden deploy et.
+4. Tablo `Constants.java`'da güncel ve `USE_DISTANCE_SHOT = true` kalsın. Yeniden deploy et.
 5. **Uçtan uca:** sol tetik basılı: robot dönüp hizalanmalı, hood ve shooter `Vision/TableRpm` / `Vision/TableHoodDegrees` hedeflerine gitmeli, `Shoot/State` sırasıyla `SPINNING_UP → WAITING_AIM → SHOOTING`. Besleme ancak **shooter hazır + hood hazır + hizalı** olunca başlar. Tag kaybolursa besleme **durur**. Tetik bırakılınca hood HOME'a iner (B ile önceden açıldıysa manuel açıya döner).
 
 ---
@@ -249,7 +249,8 @@ Alliance'ı `Vision/AllianceOverride`'dan KIRMIZI seç, kırmızı hub'ın **ort
 ## Yarışma öncesi son kontrol
 - [ ] `TUNING_ENABLED = false` (dashboard'dan yanlış değer girilemesin).
 - [ ] Bu gecenin değerleri `Constants.java`'ya yazıldı (kV, kP, MIN_TURN, kamera, tablo, anti-jam eşikleri, AIM_OFFSET).
-- [ ] `./gradlew build` geçiyor (32 test).
+- [ ] `./gradlew build` geçiyor.
+- [ ] Otonom: hizala, mesafeye göre hood/RPM, `Shoot/Balls` 8 olunca dur. Tag yoksa atmaz. Süre dolunca da durur.
 - [ ] Limelight'ta iki pipeline ve `ID Filters` dolu, kamera statik IP'de, ayarlar yedeklendi.
 - [ ] Robot açılırken intake kapalı **ve hood HOME'da**.
 

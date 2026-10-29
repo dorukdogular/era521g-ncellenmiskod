@@ -56,6 +56,7 @@ public class VisionSubsystem extends SubsystemBase {
   private double visionRpm = Double.NaN;
   private double visionHoodDegrees = Double.NaN;
   private double visionRpmTime = Double.NEGATIVE_INFINITY;
+  private double filteredTy = Double.NaN;
 
   public VisionSubsystem() {
     allianceChooser.setDefaultOption("AUTO (driver station)", AllianceChoice.AUTO);
@@ -105,15 +106,70 @@ public class VisionSubsystem extends SubsystemBase {
   }
 
   /**
+   * True when the distance table may be used: the tag is inside the calibrated ty span, or the
+   * tag just disappeared and the last in-range solution is still inside the hold window.
+   * A tag that is visible but outside the table is not a solution.
+   */
+  public boolean hasInRangeShot() {
+    return inRangeShot(
+        VisionConstants.USE_DISTANCE_SHOT, hasTarget, rawInRange(), holdFresh());
+  }
+
+  /** True when a tag is visible and its ty is outside the shot table (do not feed). */
+  public boolean isOutOfRange() {
+    return outOfRange(VisionConstants.USE_DISTANCE_SHOT, hasTarget, rawInRange());
+  }
+
+  private boolean rawInRange() {
+    return hasTarget && tyDegrees >= tableMinTy && tyDegrees <= tableMaxTy;
+  }
+
+  private boolean holdFresh() {
+    return !Double.isNaN(visionRpm)
+        && Timer.getFPGATimestamp() - visionRpmTime <= RPM_HOLD_SECONDS;
+  }
+
+  /** Package-visible for unit tests. {@code rawInRange} is only meaningful when {@code hasTarget}. */
+  static boolean inRangeShot(boolean distanceMode,
+                             boolean hasTarget,
+                             boolean rawInRange,
+                             boolean holdFresh) {
+    if (!distanceMode) {
+      return false;
+    }
+    if (hasTarget) {
+      return rawInRange;
+    }
+    return holdFresh;
+  }
+
+  /** Package-visible for unit tests. */
+  static boolean outOfRange(boolean distanceMode, boolean hasTarget, boolean rawInRange) {
+    return distanceMode && hasTarget && !rawInRange;
+  }
+
+  /** Package-visible for unit tests. NaN current snaps to the target. */
+  static double slewToward(double current, double target, double maxStep) {
+    if (Double.isNaN(current)) {
+      return target;
+    }
+    double delta = target - current;
+    if (delta > maxStep) {
+      return current + maxStep;
+    }
+    if (delta < -maxStep) {
+      return current - maxStep;
+    }
+    return target;
+  }
+
+  /**
    * Shooter RPM for the current tag angle (ty). Falls back to {@code fallbackRpm} when
-   * USE_DISTANCE_SHOT is off, there is no tag, or ty is outside the calibrated table range.
+   * distance mode is off or there is no in-range solution. An out-of-range tag does not
+   * keep returning an older solution.
    */
   public double getTargetRpm(double fallbackRpm) {
-    if (!VisionConstants.USE_DISTANCE_SHOT) {
-      return fallbackRpm;
-    }
-    boolean fresh = Timer.getFPGATimestamp() - visionRpmTime <= RPM_HOLD_SECONDS;
-    if (!Double.isNaN(visionRpm) && fresh) {
+    if (hasInRangeShot() && !Double.isNaN(visionRpm)) {
       return visionRpm;
     }
     return fallbackRpm;
@@ -121,11 +177,7 @@ public class VisionSubsystem extends SubsystemBase {
 
   /** Hood angle for the current tag angle (ty); same fallback rules as {@link #getTargetRpm}. */
   public double getTargetHoodDegrees(double fallbackDegrees) {
-    if (!VisionConstants.USE_DISTANCE_SHOT) {
-      return fallbackDegrees;
-    }
-    boolean fresh = Timer.getFPGATimestamp() - visionRpmTime <= RPM_HOLD_SECONDS;
-    if (!Double.isNaN(visionHoodDegrees) && fresh) {
+    if (hasInRangeShot() && !Double.isNaN(visionHoodDegrees)) {
       return visionHoodDegrees;
     }
     return fallbackDegrees;
@@ -226,10 +278,15 @@ public class VisionSubsystem extends SubsystemBase {
       distanceMeters = Double.NaN;
     }
 
-    if (hasTarget && tyDegrees >= tableMinTy && tyDegrees <= tableMaxTy) {
-      visionRpm = rpmTable.get(tyDegrees);
-      visionHoodDegrees = hoodTable.get(tyDegrees);
+    if (rawInRange()) {
+      filteredTy = slewToward(filteredTy, tyDegrees, VisionConstants.TY_SLEW_DEGREES_PER_CYCLE);
+      visionRpm = MathUtil.clamp(
+          rpmTable.get(filteredTy), ShooterConstants.MIN_TARGET_RPM, ShooterConstants.MAX_TARGET_RPM);
+      visionHoodDegrees = MathUtil.clamp(
+          hoodTable.get(filteredTy), HoodConstants.MIN_DEGREES, HoodConstants.MAX_DEGREES);
       visionRpmTime = now;
+    } else if (!hasTarget && !holdFresh()) {
+      filteredTy = Double.NaN;
     }
 
     SmartDashboard.putString("Vision/Alliance", alliance.map(Enum::name).orElse("UNKNOWN"));
@@ -247,5 +304,8 @@ public class VisionSubsystem extends SubsystemBase {
     SmartDashboard.putNumber("Vision/TableHoodDegrees",
         Double.isNaN(visionHoodDegrees) ? -1.0 : visionHoodDegrees);
     SmartDashboard.putBoolean("Vision/UsingDistanceShot", VisionConstants.USE_DISTANCE_SHOT);
+    SmartDashboard.putBoolean("Vision/InRange", hasInRangeShot());
+    SmartDashboard.putBoolean("Vision/OutOfRange", isOutOfRange());
+    SmartDashboard.putNumber("Vision/FilteredTy", Double.isNaN(filteredTy) ? 0.0 : filteredTy);
   }
 }
