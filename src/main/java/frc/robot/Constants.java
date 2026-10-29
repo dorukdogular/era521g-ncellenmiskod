@@ -88,8 +88,8 @@ public final class Constants {
   public static final class HoodConstants {
     private HoodConstants() {}
 
-    // olc: hood dislisi gercekten kac:1? (motor donusu / hood donusu). simdiki deger TAHMINI
-    public static final double GEAR_RATIO                 = 50.0;
+    // neo pinyon 10 dis, hood dislisi 21 dis -> motor/hood = 21/10
+    public static final double GEAR_RATIO                 = 21.0 / 10.0;
     public static final double POSITION_CONVERSION_FACTOR = 360.0 / GEAR_RATIO; // hood derecesi
 
     // hood acisi = HOME'dan (robot acilirken durdugu en alcak konum) itibaren derece. 0 = home.
